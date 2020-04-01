@@ -56,6 +56,17 @@ class SQLiteDb(metaclass=Singleton):
             self._conn.commit()
         except Error as e:
             print(e)
+
+    def get_one(self, select_stmnt_sql):
+        result = None
+        try:
+            c = self._conn.cursor()
+            c.execute(select_stmnt_sql)
+            result = c.fetchone()
+        except Error as e:
+            print(e)
+        return result    
+            
  
 def get_db_conn():
     return SQLiteDb.__call__()
