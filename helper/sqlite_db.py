@@ -1,15 +1,18 @@
 import sqlite3
 import os
 from sqlite3 import Error
- 
+
+
 class Singleton(type):
     _instances = {}
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super(
+                Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
- 
+
 class SQLiteDb(metaclass=Singleton):
     _conn = None
 
@@ -19,7 +22,7 @@ class SQLiteDb(metaclass=Singleton):
     def get_file_path(self):
         code_path = os.path.dirname(os.path.realpath(__file__))
         db_path = code_path[:code_path.rfind('/')]+'/data/data.db'
-        print("code_path:",code_path)
+        print("code_path:", code_path)
         print("db_path:", db_path)
         return db_path
 
@@ -42,6 +45,7 @@ class SQLiteDb(metaclass=Singleton):
         :param create_table_sql: a CREATE TABLE statement
         :return:
         """
+        print("Executing create statement: ", create_table_sql)
         try:
             c = self._conn.cursor()
             c.execute(create_table_sql)
@@ -50,6 +54,7 @@ class SQLiteDb(metaclass=Singleton):
             print(e)
 
     def insert_data(self, insert_data_sql):
+        print("Executing insert statement: ", insert_data_sql)
         try:
             c = self._conn.cursor()
             c.execute(insert_data_sql)
@@ -58,6 +63,7 @@ class SQLiteDb(metaclass=Singleton):
             print(e)
 
     def get_one(self, select_stmnt_sql):
+        print("Executing get one result statement: ", select_stmnt_sql)
         result = None
         try:
             c = self._conn.cursor()
@@ -65,11 +71,23 @@ class SQLiteDb(metaclass=Singleton):
             result = c.fetchone()
         except Error as e:
             print(e)
-        return result    
-            
- 
+        return result
+
+    def get_data(self, select_stmnt_sql):
+        print("Executing select statement: ", select_stmnt_sql)
+        result = None
+        try:
+            c = self._conn.cursor()
+            c.execute(select_stmnt_sql)
+            result = c.fetchall()
+        except Error as e:
+            print(e)
+        return result
+
+
 def get_db_conn():
     return SQLiteDb.__call__()
+
 
 if __name__ == '__main__':
     conn = get_db_conn()
