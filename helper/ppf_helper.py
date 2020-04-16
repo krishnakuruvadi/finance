@@ -1,4 +1,5 @@
 from sqlite_db import get_db_conn
+from ppf_sbi_xls import PpfSbiHelper
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 import os
@@ -216,3 +217,7 @@ if __name__ == '__main__':
         "0000045678765", "12/3/2016", "credit", 7000, "", "Interest capitalized", True)
     ppf_h.refresh_summary()
     print(ppf_h.get_last_five_years_avg_rate())
+    ppf_sbi_helper = PpfSbiHelper()
+    for trans in ppf_sbi_helper.get_transactions("krishna"):
+        ppf_h.insert_ppf_trans_entry(
+            trans["ppf_number"], trans["trans_date"], trans["type"], trans["amount"], trans["reference"], trans["notes"], trans["interest_component"])
