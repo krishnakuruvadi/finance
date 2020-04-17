@@ -1,5 +1,6 @@
 from sqlite_db import get_db_conn
 from ppf_sbi_xls import PpfSbiHelper
+from sqlite_helper import SQLiteReplaceHelper
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 import os
@@ -38,9 +39,12 @@ class PpfHelper:
                 if row["From"] == "" or row["To"] == "" or row["ROI"] == "":
                     print("Invalid row for ppf rates entry")
                     continue
-                insert_stmnt = '''REPLACE INTO PPF_RATES(id, from_date, to_date, roi) VALUES ('''
-                insert_stmnt += str(line_count) + ''',"''' + row["From"] + '''","''' + \
-                    row["To"] + '''",''' + row["ROI"] + ''')'''
+                insert_helper = SQLiteReplaceHelper("PPF_RATES")
+                insert_helper.add_field("id", line_count)
+                insert_helper.add_field("from_date", row["From"])
+                insert_helper.add_field("to_date", row["To"])
+                insert_helper.add_field("roi", float(row["ROI"]))
+                insert_stmnt = insert_helper.get_statement()
                 conn.insert_data(insert_stmnt)
                 line_count += 1
 
@@ -57,7 +61,6 @@ class PpfHelper:
                     row[0], '%d/%m/%Y').date()
                 end_date = datetime.now()
                 if relativedelta(end_date,  start_date).years <= 5:
-
                     months = relativedelta(datetime.strptime(row[1], '%d/%m/%Y').date(
                     ), datetime.strptime(row[0], '%d/%m/%Y').date()).months + 1
                     print("For ", str(months), " months between ",
@@ -134,11 +137,13 @@ class PpfHelper:
         print(res)
         print(type(res))
         if res and res[1] is None:
-            insert_stmnt = ''' INSERT INTO PPF(id, number, start_date, user, goal) VALUES('''
-            insert_stmnt += str(res[0]) + ''', "''' + \
-                number + '''","''' + start_date + '''","'''
-            insert_stmnt += user + '''",''' + str(goal) + ''')'''
-            print(insert_stmnt)
+            insert_helper = SQLiteReplaceHelper("PPF", True)
+            insert_helper.add_field("id", res[0])
+            insert_helper.add_field("number", number)
+            insert_helper.add_field("start_date", start_date)
+            insert_helper.add_field("user", user)
+            insert_helper.add_field("goal", goal)
+            insert_stmnt = insert_helper.get_statement()
             conn.insert_data(insert_stmnt)
         else:
             print("PPF account exists:", number)
@@ -179,22 +184,30 @@ class PpfHelper:
         select_stmnt = '''SELECT A.id, A.number, A.start_date, A.user, A.goal from PPF A'''
         rows = conn.get_data(select_stmnt)
         for row in rows:
-            insert_ppf_summary = ''' REPLACE INTO PPF_SUMMARY (id, number, start_date, user, goal, '''
-            insert_ppf_summary += '''curr_amount, principal, interest, withdrawal, avg_investment, roi_five) VALUES ('''
-            insert_ppf_summary += str(row[0]) + ''',"''' + row[1] + '''","''' + \
-                row[2] + '''","''' + row[3] + '''",''' + str(row[4]) + ''','''
+            insert_helper = SQLiteReplaceHelper("PPF_SUMMARY")
+            insert_helper.add_field("id", row[0])
+            insert_helper.add_field("number", row[1])
+            insert_helper.add_field("start_date", row[2])
+            insert_helper.add_field("user", row[3])
+            insert_helper.add_field("goal", row[4])
             if row[0] in summary.keys():
                 temp = summary[row[0]]
-                insert_ppf_summary += str(temp.get("curr_amount", 0)) + ''','''
-                insert_ppf_summary += str(temp.get("principal", 0)) + ''','''
-                insert_ppf_summary += str(temp.get("interest", 0)) + ''','''
-                insert_ppf_summary += str(temp.get("debit", 0)) + ''','''
-                insert_ppf_summary += str(temp.get("principal", 0) /
-                                          self.get_diff_in_years(row[2]))
+                insert_helper.add_field(
+                    "curr_amount", temp.get("curr_amount", 0))
+                insert_helper.add_field("principal", temp.get("principal", 0))
+                insert_helper.add_field("interest", temp.get("interest", 0))
+                insert_helper.add_field("withdrawal", temp.get("debit", 0))
+                insert_helper.add_field("avg_investment", temp.get("principal", 0) /
+                                        self.get_diff_in_years(row[2]))
             else:
-                insert_ppf_summary += '''0, 0, 0, 0, 0'''
-            insert_ppf_summary += ''', ''' + \
-                str(self.get_last_five_years_avg_rate()) + ''')'''
+                insert_helper.add_field("curr_amount", 0)
+                insert_helper.add_field("principal", 0)
+                insert_helper.add_field("interest", 0)
+                insert_helper.add_field("withdrawal", 0)
+                insert_helper.add_field("avg_investment", 0)
+            insert_helper.add_field(
+                "roi_five", self.get_last_five_years_avg_rate())
+            insert_ppf_summary = insert_helper.get_statement()
             conn.insert_data(insert_ppf_summary)
 
     def get_diff_in_years(self, start_date):
